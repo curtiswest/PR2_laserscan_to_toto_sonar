@@ -12,30 +12,41 @@
 
 using namespace guWhiteboard;
 
-/*  In the Tiago we receive a LaserScan that we are going to use to
-   simulate Totos sonar sensors.
-   In Tiago, -1.98 is the extreme right measurement while 1.98 is extreme left measurement
-   MiPAL sonar values are in cm and in a bit, so maximum range is 255
-   Sonar 5 is the first 30 degress (pi/6) from -pi/2 to -pi/2+pi/6 = -pi/3
-   Sonar 4 is the next wedge 30 degress (pi/6) from -pi/3 to -pi/6 
-   Sonar 3 is the next wedge 30 degress (pi/6) from -pi/6 to  0
-   Sonar 2 is the next wedge 30 degress (pi/6) from  0 to pi/6
-   Sonar 1 is the next wedge 30 degress (pi/6) from   pi/6 to pi/3
-*/
+/* From the PR2, we recieve two sensor_msgs/LaserScan messages:
+ * 	/base_scan - from the laser at the base of the robot
+ * 	/tilt_scan - from the pan-tilt laser at shoulder height
+ * We will use the /base_scan LaserScan here as it covers the front ~260 deg of the robot, which means that
+ * 	extreme right measurement: -2.2689 rad
+ * 	extreme left measurement :  2.2689 rad
+ * The LaserScan ranges to match Toto's sonar sensors are:
+	*0: pi/2 	to 	2pi/6
+	*1: 2pi/6	to	pi/6
+	*2: pi/6	to	0
+	*3: 0		to	-pi/6
+	*4: -pi/6	to	-2pi/6
+	*5: -2pi/6	to	-pi/2
+	*6: -pi/2	to	-4pi/6
+	*7:	-4pi/6 	to	-4pi/6 + pi/18 (only 1/3rd sweep angle)
+	*	<blank zone w/o sensors>
+	*10: 11pi/18 to 4pi/6 (only 1/3rd sweep angle)
+	*11: 4pi/6	to	pi/2
+ *
+ */
 
 class ToToSONARS {
 
 public:
    ToToSONARS (ros::NodeHandle n )
     {
-        sub_sonar = n.subscribe("sonar_base", 1000, &ToToSONARS::sonarCallback,this);
-        sub_scan = n.subscribe("scan", 1000,  &ToToSONARS::scanCallback,this);
+        // sub_sonar = n.subscribe("sonar_base", 1000, &ToToSONARS::sonarCallback,this); // TODO:: Implement /tilt_scan here
+        sub_scan = n.subscribe("base_scan", 1000,  &ToToSONARS::scanCallback,this);
         for(int i = Sonar::Left0; i < Sonar::NUMBER_OF_READINGS; i++)
            sensors.set_sonar(uint8_t(0), i);
-        SENSORSSonarSensors_t wb_handler;               // whiteboard
+        SENSORSSonarSensors_t wb_handler; //gusimplewhiteboard
         wb_handler.post(sensors);  
     }
 
+/*
 void sonarCallback (const sensor_msgs::Range::ConstPtr& sonar_in)
     { std::stringstream ss; 
       ss << sonar_in->header.frame_id;
@@ -74,7 +85,7 @@ void sonarCallback (const sensor_msgs::Range::ConstPtr& sonar_in)
 	}
       //ROS_INFO(" Sonar %d: [%f]  id [%s]", sonar_id, sonar_n->range, (ss.str()).c_str()  ); 
     }
-
+*/
 
 void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
@@ -86,16 +97,22 @@ void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
 	  n_measurements[i]=0;
 	}
 
-  ROS_INFO("I heard: [%f]", scan_in->angle_min); ROS_INFO("I heard: [%f]", scan_in->angle_max);
+  ROS_INFO("NEW LASER SCAN: Min angle [%f] | Max angle [%f]", scan_in->angle_min, scan_in->angle_max);
   
-  bool limit = false;
+  //bool limit = false;
   double  theLaserAperture= scan_in->angle_min;
   int i=0;
-  int sonar_id=6;
+  int sonar_id=7;
+
+  //Loop through each LaserScan angle_increment and adjust reading based on each
   while (theLaserAperture < scan_in->angle_max)
   {  
+	/* s7 */
+	if(theLaserAperture <= -4*myPi/6.0) {
+		sonar_id=7;
+	}
 	/* s6 */
-    if ( theLaserAperture <= -myPi/2.0  )
+	else if ( theLaserAperture <= -myPi/2.0 && theLaserAperture > -4*myPi/6.0)
 		{  sonar_id=6; }
 	/* s5 */
     else if (( -myPi/2.0 <= theLaserAperture ) && ( theLaserAperture <= -myPi/3.0 ) )
@@ -116,23 +133,36 @@ void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
     else if (( myPi/3.0 < theLaserAperture ) && ( theLaserAperture <= myPi/2.0 ) )
 		{  sonar_id=0; }
 	/* s11 */
-    else if ( myPi/2.0 < theLaserAperture ) 
+    else if ( myPi/2.0 < theLaserAperture && 4*myPi/6.0 >= theLaserAperture )
 		{  sonar_id=11; }
+    else if ( 4*myPi/6.0 < theLaserAperture) {
+    	sonar_id=10;
+    }
 
+	if ((8!=i) && (9!=i)) {
+	         toto_sonars[sonar_id] =  scan_in->ranges[i] < toto_sonars[sonar_id] ? scan_in->ranges[i] : toto_sonars[sonar_id];
+	}
+	n_measurements[sonar_id]+=1;
+	i++;
+	theLaserAperture+= scan_in->angle_increment;
+
+	 /* Old copy
      if ((7!=i) && (8!=i) && (9!=i) && (10!=i))
          toto_sonars[sonar_id] =  scan_in->ranges[i] < toto_sonars[sonar_id] ? scan_in->ranges[i] : toto_sonars[sonar_id];
      n_measurements[sonar_id]+=1;
      i++;
      theLaserAperture+= scan_in->angle_increment;
+     */
   }
 
-  // convert meters to centimiters
+  // convert meters to centimeters
   for (int i=0; i< TOTO_SONARS; i++)
-	{ if ((7!=i) && (8!=i) && (9!=i) && (10!=i))
+	{ if ((8!=i) && (9!=i))
             toto_sonars[i]=100.0*toto_sonars[i];
                    //ROS_INFO("s4 count: [%d] value: %f",s4_measureemnts,s4 );
 	}
 
+  //Cap sonar reading to 255 as per MiPAL sonar reading standard
    uint8_t s0_as_int = toto_sonars[0] >255? 255 : uint8_t(toto_sonars[0]);
    sensors.set_sonar(s0_as_int, Sonar::sZero);
    ROS_INFO("s0 value: [%d]",sensors.sonar(Sonar::sZero) );
@@ -160,6 +190,14 @@ void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
    uint8_t s6_as_int = toto_sonars[6] >255? 255 : uint8_t(toto_sonars[6]);
    sensors.set_sonar(s6_as_int, Sonar::sSix);
    ROS_INFO("s6 value: [%d]",sensors.sonar(Sonar::sSix) );
+
+   uint8_t s7_as_int = toto_sonars[7] >255? 255 : uint8_t(toto_sonars[7]);
+   sensors.set_sonar(s7_as_int, Sonar::sSeven);
+   ROS_INFO("s7 value: [%d]",sensors.sonar(Sonar::sSeven) );
+
+   uint8_t s10_as_int = toto_sonars[10] >255? 255 : uint8_t(toto_sonars[10]);
+   sensors.set_sonar(s10_as_int, Sonar::sTen);
+   ROS_INFO("s10 value: [%d]",sensors.sonar(Sonar::sTen) );
 
    uint8_t s11_as_int = toto_sonars[11] >255? 255 : uint8_t(toto_sonars[11]);
    sensors.set_sonar(s11_as_int, Sonar::sEleven);
