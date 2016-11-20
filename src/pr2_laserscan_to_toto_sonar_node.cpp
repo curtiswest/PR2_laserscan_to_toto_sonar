@@ -92,7 +92,7 @@ void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
   int n_measurements[TOTO_SONARS];
   for (int i=0; i< TOTO_SONARS; i++)
 	{ // skip values obtained from back sonar
-          if ((7!=i) && (8!=i) && (9!=i) && (10!=i))
+          if ((8!=i) && (9!=i))
               toto_sonars[i]=255.0;
 	  n_measurements[i]=0;
 	}
