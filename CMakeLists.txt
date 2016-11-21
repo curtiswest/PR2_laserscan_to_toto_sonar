@@ -130,6 +130,7 @@ include_directories(
 
 ## Declare a C++ executable
 add_executable(pr2_laserscan_to_toto_sonar_node src/pr2_laserscan_to_toto_sonar_node.cpp)
+add_executable(pr2_fullrangelaserscan_to_sonar_node src/pr2_fullrangelaserscan_to_sonar_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -137,6 +138,10 @@ add_executable(pr2_laserscan_to_toto_sonar_node src/pr2_laserscan_to_toto_sonar_
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(pr2_laserscan_to_toto_sonar_node
+   ${catkin_LIBRARIES}
+ )
+
+ target_link_libraries(pr2_fullrangelaserscan_to_sonar_node
    ${catkin_LIBRARIES}
  )
 
