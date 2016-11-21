@@ -39,55 +39,19 @@ public:
    ToToSONARS (ros::NodeHandle n )
     {
         // sub_sonar = n.subscribe("sonar_base", 1000, &ToToSONARS::sonarCallback,this); // TODO:: Implement /tilt_scan here
-        sub_scan = n.subscribe("base_scan", 1000,  &ToToSONARS::scanCallback,this);
+        sub_front_scan = n.subscribe("base_scan", 1000,  &ToToSONARS::frontScanCallback,this);
+        sub_rear_scan = n.subscribe("rear_scan", 1000,  &ToToSONARS::rearScanCallback,this);
         for(int i = Sonar::Left0; i < Sonar::NUMBER_OF_READINGS; i++)
            sensors.set_sonar(uint8_t(0), i);
         SENSORSSonarSensors_t wb_handler; //gusimplewhiteboard
         wb_handler.post(sensors);  
     }
 
+
 /*
-void sonarCallback (const sensor_msgs::Range::ConstPtr& sonar_in)
-    { std::stringstream ss; 
-      ss << sonar_in->header.frame_id;
-      std::string the_id (ss.str());
-      std::string sonar_name_back_right ("3");
-      std::string sonar_name_back ("2");
-      std::string sonar_name_back_left ("1");
-      std::size_t found = the_id.find(sonar_name_back_right);
-      int sonar_id=8;
-      if (found!=std::string::npos)
-        {  sonar_id=7;
-        }
-      else
-	{ found = the_id.find(sonar_name_back_left);
-          if (found!=std::string::npos)
-             {  sonar_id=10; }
-	}
-
-      toto_sonars[sonar_id]=100.0*sonar_in->range;
-      uint8_t sonar_as_int = toto_sonars[sonar_id] >255? 255 : uint8_t(toto_sonars[sonar_id]);
-
-      if (7==sonar_id)
-           { sensors.set_sonar(sonar_as_int, Sonar::sSeven);
-             ROS_INFO("s7 value: [%d]",sensors.sonar(Sonar::sSeven) );
-           }
-       else if (10==sonar_id)
-           { sensors.set_sonar(sonar_as_int, Sonar::sTen);
-             ROS_INFO("s10 value: [%d]",sensors.sonar(Sonar::sTen) );
-           }
-       else
-	{ sensors.set_sonar(sonar_as_int, Sonar::sEight);
-          ROS_INFO("s8 value: [%d]",sensors.sonar(Sonar::sEight) );
-
-          sensors.set_sonar(sonar_as_int, Sonar::sNine);
-          ROS_INFO("s9 value: [%d]",sensors.sonar(Sonar::sNine) );
-	}
-      //ROS_INFO(" Sonar %d: [%f]  id [%s]", sonar_id, sonar_n->range, (ss.str()).c_str()  ); 
-    }
-*/
-
-void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
+ * Convert front laser scan (/base_scan) into sonar reasons 0-7 * 10-11.
+ */
+void frontScanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
   int n_measurements[TOTO_SONARS];
   for (int i=0; i< TOTO_SONARS; i++)
@@ -97,7 +61,7 @@ void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
 	  n_measurements[i]=0;
 	}
 
-  ROS_INFO("NEW LASER SCAN: Min angle [%f] | Max angle [%f]", scan_in->angle_min, scan_in->angle_max);
+  //ROS_INFO("NEW FRONT SCAN: Min angle [%f] | Max angle [%f]", scan_in->angle_min, scan_in->angle_max);
   
   //bool limit = false;
   double  theLaserAperture= scan_in->angle_min;
@@ -145,14 +109,6 @@ void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
 	n_measurements[sonar_id]+=1;
 	i++;
 	theLaserAperture+= scan_in->angle_increment;
-
-	 /* Old copy
-     if ((7!=i) && (8!=i) && (9!=i) && (10!=i))
-         toto_sonars[sonar_id] =  scan_in->ranges[i] < toto_sonars[sonar_id] ? scan_in->ranges[i] : toto_sonars[sonar_id];
-     n_measurements[sonar_id]+=1;
-     i++;
-     theLaserAperture+= scan_in->angle_increment;
-     */
   }
 
   // convert meters to centimeters
@@ -165,51 +121,129 @@ void scanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
   //Cap sonar reading to 255 as per MiPAL sonar reading standard
    uint8_t s0_as_int = toto_sonars[0] >255? 255 : uint8_t(toto_sonars[0]);
    sensors.set_sonar(s0_as_int, Sonar::sZero);
-   ROS_INFO("s0 value: [%d]",sensors.sonar(Sonar::sZero) );
+   //ROS_INFO("s0 value: [%d]",sensors.sonar(Sonar::sZero) );
 
    uint8_t s1_as_int = toto_sonars[1] >255? 255 : uint8_t(toto_sonars[1]);
    sensors.set_sonar(s1_as_int, Sonar::sOne);
-   ROS_INFO("s1 value: [%d]",sensors.sonar(Sonar::sOne) );
+   //ROS_INFO("s1 value: [%d]",sensors.sonar(Sonar::sOne) );
 
    uint8_t s2_as_int = toto_sonars[2] >255? 255 : uint8_t(toto_sonars[2]);
    sensors.set_sonar(s2_as_int, Sonar::sTwo);
-   ROS_INFO("s2 value: [%d]",sensors.sonar(Sonar::sTwo) );
+   //ROS_INFO("s2 value: [%d]",sensors.sonar(Sonar::sTwo) );
 
    uint8_t s3_as_int = toto_sonars[3] >255? 255 : uint8_t(toto_sonars[3]);
    sensors.set_sonar(s3_as_int, Sonar::sThree);
-   ROS_INFO("s3 value: [%d]",sensors.sonar(Sonar::sThree) );
+   //ROS_INFO("s3 value: [%d]",sensors.sonar(Sonar::sThree) );
 
    uint8_t s4_as_int = toto_sonars[4] >255? 255 : uint8_t(toto_sonars[4]);
    sensors.set_sonar(s4_as_int, Sonar::sFour);
-   ROS_INFO("s4 value: [%d]",sensors.sonar(Sonar::sFour) );
+   //ROS_INFO("s4 value: [%d]",sensors.sonar(Sonar::sFour) );
 
    uint8_t s5_as_int = toto_sonars[5] >255? 255 : uint8_t(toto_sonars[5]);
    sensors.set_sonar(s5_as_int, Sonar::sFive);
-   ROS_INFO("s5 value: [%d]",sensors.sonar(Sonar::sFive) );
+   //ROS_INFO("s5 value: [%d]",sensors.sonar(Sonar::sFive) );
 
    uint8_t s6_as_int = toto_sonars[6] >255? 255 : uint8_t(toto_sonars[6]);
    sensors.set_sonar(s6_as_int, Sonar::sSix);
-   ROS_INFO("s6 value: [%d]",sensors.sonar(Sonar::sSix) );
+   //ROS_INFO("s6 value: [%d]",sensors.sonar(Sonar::sSix) );
 
    uint8_t s7_as_int = toto_sonars[7] >255? 255 : uint8_t(toto_sonars[7]);
    sensors.set_sonar(s7_as_int, Sonar::sSeven);
-   ROS_INFO("s7 value: [%d]",sensors.sonar(Sonar::sSeven) );
+   //ROS_INFO("s7 value: [%d]",sensors.sonar(Sonar::sSeven) );
 
    uint8_t s10_as_int = toto_sonars[10] >255? 255 : uint8_t(toto_sonars[10]);
    sensors.set_sonar(s10_as_int, Sonar::sTen);
-   ROS_INFO("s10 value: [%d]",sensors.sonar(Sonar::sTen) );
+   //ROS_INFO("s10 value: [%d]",sensors.sonar(Sonar::sTen) );
 
    uint8_t s11_as_int = toto_sonars[11] >255? 255 : uint8_t(toto_sonars[11]);
    sensors.set_sonar(s11_as_int, Sonar::sEleven);
-   ROS_INFO("s11 value: [%d]",sensors.sonar(Sonar::sEleven) );
+   //ROS_INFO("s11 value: [%d]",sensors.sonar(Sonar::sEleven) );
 
    SENSORSSonarSensors_t wb_handler;               // whiteboard
    wb_handler.post(sensors);  
 }
 
+
+/*
+ * Convert rear laser scan (/rear_scan) into sonar reasons 8 & 9 .
+ */
+void rearScanCallback (const sensor_msgs::LaserScan::ConstPtr& scan_in)
+{
+  int n_measurements[TOTO_SONARS];
+  for (int i=0; i< TOTO_SONARS; i++)
+	{ // skip values obtained from front sonar
+          if ((8==i) || (9==i))
+              toto_sonars[i]=255.0;
+	  n_measurements[i]=0;
+	}
+
+  ROS_INFO("NEW REAR SCAN: Min angle [%f] | Max angle [%f]", scan_in->angle_min, scan_in->angle_max);
+
+  //bool limit = false;
+  double  theLaserAperture= scan_in->angle_min;
+  int i=0;
+  int sonar_id=0;
+
+  //Loop through each LaserScan angle_increment and adjust reading based on each
+  while (theLaserAperture < scan_in->angle_max) {
+	/*
+	 * if(theLaserAperture <= myPi/6.0 && theLaserAperture > 0) {
+		ROS_INFO("UPDATING SONAR 8., angle: [%f]", theLaserAperture);
+		sonar_id=8;
+	} else if(theLaserAperture >= -myPi/6.0 && theLaserAperture < 0) {
+		ROS_INFO("UPDATING SONAR 9");
+		sonar_id=9;
+	}
+	 */
+
+
+	if(theLaserAperture > 0) {
+		//ROS_INFO("UPDATING SONAR 8., angle: [%f]", theLaserAperture);
+		sonar_id=8;
+	} else {
+		//ROS_INFO("UPDATING SONAR 9");
+		sonar_id=9;
+	}
+
+	//Keep only the shortest distance for this sonar range
+	if ((8==sonar_id) || (9==sonar_id)) {
+	         toto_sonars[sonar_id] =  scan_in->ranges[i] < toto_sonars[sonar_id] ? scan_in->ranges[i] : toto_sonars[sonar_id];
+	}
+	/*
+	 * if ((8==i) || (9==i)) {
+	         toto_sonars[sonar_id] =  scan_in->ranges[i] < toto_sonars[sonar_id] ? scan_in->ranges[i] : toto_sonars[sonar_id];
+	}
+	 */
+	n_measurements[sonar_id]+=1;
+	i++;
+	theLaserAperture+= scan_in->angle_increment;
+  }
+
+  // convert meters to centimeters
+  for (int i=0; i< TOTO_SONARS; i++)
+	{ if ((8==i) || (9==i))
+            toto_sonars[i]=100.0*toto_sonars[i];
+                   //ROS_INFO("s4 count: [%d] value: %f",s4_measureemnts,s4 );
+	}
+
+  //Cap sonar reading to 255 as per MiPAL sonar reading standard
+   uint8_t s8_as_int = toto_sonars[8] >255? 255 : uint8_t(toto_sonars[8]);
+   sensors.set_sonar(s8_as_int, Sonar::sEight);
+   ROS_INFO("s8 value: [%d]",sensors.sonar(Sonar::sEight) );
+
+   uint8_t s9_as_int = toto_sonars[9] >255? 255 : uint8_t(toto_sonars[9]);
+   sensors.set_sonar(s9_as_int, Sonar::sNine);
+   ROS_INFO("s9 value: [%d]",sensors.sonar(Sonar::sNine) );
+
+   SENSORSSonarSensors_t wb_handler;               // whiteboard
+   wb_handler.post(sensors);
+}
+
+
 protected:
-  ros::Subscriber sub_sonar;
-  ros::Subscriber sub_scan;
+  ros::Subscriber sub_rear_scan;
+  ros::Subscriber sub_front_scan;
+
   SENSORSSonarSensors   sensors;                  // sensor values
   double toto_sonars[TOTO_SONARS];
 };
