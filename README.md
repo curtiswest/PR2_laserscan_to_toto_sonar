@@ -14,4 +14,5 @@ This variant utilises the rear laser scan to get full coverage of all sonar regi
 
 Execute it with:
 
-	`./devel/lib/pr2_laserscan_to_toto_sonar/pr2_fullrangelaserscan_to_toto_sonar_node`
+	`./devel/lib/pr2_laserscan_to_toto_sonar/pr2_fullrangelaserscan_to_sonar_node`
+
